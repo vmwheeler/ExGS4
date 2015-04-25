@@ -5,38 +5,34 @@ classdef Element1DL < handle
         num = -29;
         nodes = cell(2,1);
         const = [-29,-29];
-        nNodePerEle = 2;
+        nnpe = 2;
         dx = -29;
-        toJ = cell(2,1);
+        toLHS = cell(2,1);
         toRHS = cell(2,1);
         force = [-29,-29];
         numDyn = 2;
         yp = -29;
     end
     
-    properties (SetAccess = private)
-        
-    end
-    
     methods
         %
         % Constructor... send in nodes and material properties
-        function thisEle = Element1DL(numIn, nodeInfo, constIn, fIn, gs4)
+        function this = Element1DL(numIn, nodeInfo, constIn, fIn, gs4)
             
-            thisEle.num = numIn;
+            this.num = numIn;
             
-            thisEle.nodes{1} = nodeInfo(1);
-            thisEle.nodes{2} = nodeInfo(2);
+            this.nodes{1} = nodeInfo(1);
+            this.nodes{2} = nodeInfo(2);
             
-            thisEle.force(1) = fIn(1);
-            thisEle.force(2) = fIn(2);
+            this.force(1) = fIn(1);
+            this.force(2) = fIn(2);
             
-            thisEle.const = constIn;
+            this.const = constIn;
             
-            thisEle.dx = abs(thisEle.nodes{1}.loc ...
-                - thisEle.nodes{2}.loc );
+            this.dx = abs(this.nodes{1}.loc ...
+                - this.nodes{2}.loc );
 
-            thisEle.updateAll(gs4)
+            this.updateAll(gs4)
             
         end
         %
@@ -44,7 +40,7 @@ classdef Element1DL < handle
         function [] = updateAll(ele, gs4)
             
             ele.updateEleRHS(gs4)
-            ele.updateEleJ(gs4)
+            ele.updateEleLHS(gs4)
             
         end
         
@@ -79,7 +75,7 @@ classdef Element1DL < handle
             ele.toRHS{3} = [f1;f2];
         end
         
-        function [] = updateEleJ(ele,gs4)         
+        function [] = updateEleLHS(ele,gs4)         
             
             eleK = ele.const(2)*1/ele.dx * [ 1 -1 ; ...
                                            -1  1 ];  
@@ -87,8 +83,8 @@ classdef Element1DL < handle
             eleC = ele.const(1)*ele.dx/6 * [ 2 1 ; ...
                                             1 2 ];
                                         
-            ele.toJ{1} = gs4.lam6w1/gs4.lam5/gs4.dt*eleC;                                     
-            ele.toJ{2} = gs4.lam5w2/gs4.lam5*eleK;
+            ele.toLHS{1} = gs4.lam6w1/gs4.lam5/gs4.dt*eleC;                                     
+            ele.toLHS{2} = gs4.lam5w2/gs4.lam5*eleK;
             
         end
         

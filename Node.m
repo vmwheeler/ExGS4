@@ -14,22 +14,22 @@ classdef Node < handle
     end
     
     methods
-        function thisNode = Node(numIn, locIn, boundaryIn, ...
-                iVal, iValD, iValDD)
+        function this = Node(numIn, locIn, boundaryIn, ...
+                ic, icD, icDD)
             
-            thisNode.num = numIn;
+            this.num = numIn;
             
-            thisNode.loc = locIn;
+            this.loc = locIn;
             
-            thisNode.onBoundary = boundaryIn;
+            this.onBoundary = boundaryIn;
             
-            thisNode.yNew = iVal;
-            thisNode.ydNew = iValD;
-            thisNode.yddNew = iValDD;
+            this.yNew = ic;
+            this.ydNew = icD;
+            this.yddNew = icDD;
             
-            thisNode.yOld = iVal;
-            thisNode.ydOld = iValD;
-            thisNode.yddOld = iValDD;
+            this.yOld = ic;
+            this.ydOld = icD;
+            this.yddOld = icDD;
             
         end
     end

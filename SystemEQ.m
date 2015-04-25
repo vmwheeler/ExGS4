@@ -1,11 +1,10 @@
 classdef SystemEQ < handle
-    %defines class which organizes system of equations for WOOFE
     
     properties
         nNodes = -29;
         nbc = -29;
         nEle = -29;
-        J = zeros(-29,-29);
+        LHS = zeros(-29,-29);
         RHS = zeros(-29,1);
         
         gs4 = GS4(-29,-29,-29,-29,-29);
@@ -14,15 +13,12 @@ classdef SystemEQ < handle
         ele = cell(2,1);
         bcArray = cell(1,1);
     end
-    properties (SetAccess = private)
-
-    end
     
     methods
         %Constructor
         function this = SystemEQ(nNo,nEleIn,nodeSet,gs4In)
            
-            this.J = zeros(nNo,nNo);
+            this.LHS = zeros(nNo,nNo);
             this.RHS = zeros(nNo,1);
             this.nNodes = nNo;
             this.gs4 = gs4In;
@@ -40,25 +36,25 @@ classdef SystemEQ < handle
                         
             theSystem.ele{eleToAdd.num} = eleToAdd;
             
-            looplim = eleToAdd.nNodePerEle;
+            looplim = eleToAdd.nnpe;
             
             numDynAdd = eleToAdd.numDyn;
             
             %get node numbers for element to be assembled
-            nn = zeros(eleToAdd.nNodePerEle,1);
+            nn = zeros(eleToAdd.nnpe,1);
             for i = 1:looplim
                 nn(i) = eleToAdd.nodes{i}.num;
             end
             
-            for n = 1:numDynAdd % loop over each elemental addition to J/RHS
+            for n = 1:numDynAdd % loop over each elemental addition to LHS/RHS
                 
-                %find nodal contributions to J
-                addJ = eleToAdd.toJ{n};
+                %find nodal contributions to LHS
+                addLHS = eleToAdd.toLHS{n};
                 
                 for k = 1:looplim
                     for j = 1:looplim
-                        theSystem.J(nn(k),nn(j)) = ...
-                            theSystem.J(nn(k),nn(j)) + addJ(k,j);
+                        theSystem.LHS(nn(k),nn(j)) = ...
+                            theSystem.LHS(nn(k),nn(j)) + addLHS(k,j);
                     end
                 end
                 
@@ -107,9 +103,9 @@ classdef SystemEQ < handle
                 
                 if bcToSet.type == 1
                     
-                    sys.J(nNo,:) = zeros(1,length(sys.J(nNo,:)));
-                    sys.J(:,nNo) = zeros(length(sys.J(nNo,:)),1);
-                    sys.J(nNo,nNo) = 1;
+                    sys.LHS(nNo,:) = zeros(1,length(sys.LHS(nNo,:)));
+                    sys.LHS(:,nNo) = zeros(length(sys.LHS(nNo,:)),1);
+                    sys.LHS(nNo,nNo) = 1;
                                         
                     sys.RHS(nNo) = sys.nodes{nNo}.yNew - rhsVal;
                     
@@ -119,13 +115,13 @@ classdef SystemEQ < handle
                     
                 elseif bcToSet.type == 3
                     
-                    sys.J(nNo,nNo) = sys.J(nNo,nNo) + kVal;
+                    sys.LHS(nNo,nNo) = sys.LHS(nNo,nNo) + kVal;
                     sys.RHS(nNo) = sys.RHS(nNo) + kVal*sys.nodes{nNo}.yNew;
                     sys.RHS(nNo) = sys.RHS(nNo) - rhsVal;
                     
                 elseif bcToSet.type == 4
                     
-                    sys.J(nNo,nNo) = sys.J(nNo,nNo) + kVal;
+                    sys.LHS(nNo,nNo) = sys.LHS(nNo,nNo) + kVal;
                     sys.RHS(nNo) = sys.RHS(nNo) + kVal*sys.nodes{nNo}.yNew;
                     sys.RHS(nNo) = sys.RHS(nNo) + cVal*sys.nodes{nNo}.ydNew;
                     sys.RHS(nNo) = sys.RHS(nNo) - rhsVal;
@@ -144,17 +140,17 @@ classdef SystemEQ < handle
             for q = 1:sys.nEle
                 sys.ele{q}.updateEleRHS(sys.gs4);
                                 
-                looplim = sys.ele{q}.nNodePerEle;
+                looplim = sys.ele{q}.nnpe;
                 
                 numDynAdd = sys.ele{q}.numDyn;
                 
                 %get node numbers for element to be assembled
-                nn = zeros(sys.ele{q}.nNodePerEle,1);
+                nn = zeros(sys.ele{q}.nnpe,1);
                 for i = 1:looplim
                     nn(i) = sys.ele{q}.nodes{i}.num;
                 end
                 
-                for n = 1:numDynAdd % loop over each elemental addition to J/RHS
+                for n = 1:numDynAdd % loop over each elemental addition to LHS/RHS
                     
                     %find nodal contribution to RHS
                     addRHS = sys.ele{q}.toRHS{n};
@@ -181,7 +177,7 @@ classdef SystemEQ < handle
         function [] = updateSystem(sys)
             
             sys.RHS = zeros(size(sys.RHS));
-            sys.J = zeros(size(sys.J));            
+            sys.LHS = zeros(size(sys.LHS));            
             
             for j = 1:sys.nEle
                 sys.ele{j}.updateAll(sys.gs4) 
@@ -198,16 +194,24 @@ classdef SystemEQ < handle
             delta = 29;
             nlcount = 0;
             
+            sol = zeros(sys.nNodes,1);
+            
             while norm(delta) > tol
                                          
-                delta = -sys.J\sys.RHS;
-                                              
-                for i = 1:length(delta)
-                    sys.nodes{i}.yNew = sys.nodes{i}.yNew + delta(i);
+                delta = -sys.LHS\sys.RHS;
+                                                
+                for i = 1:sys.nNodes
+                    sol(i,1) = sys.nodes{i}.yNew;
+                end
+                                
+                sol = sol + delta;
+                
+                for i = 1:length(sol)
+                    sys.nodes{i}.yNew = sol(i,1);
                 end
                 
-                sys.updateRHS()
-                %sys.updateSystem()
+                %sys.updateRHS()
+                sys.updateSystem()
                 
                 nlcount = nlcount+1;
                 
@@ -220,7 +224,6 @@ classdef SystemEQ < handle
             end
             
             
-            
         end
 
         function [] = timeMarch(sys)
@@ -230,12 +233,9 @@ classdef SystemEQ < handle
                sys.nodes{i}.yddNew = newDD;
                sys.nodes{i}.ydNew = newD;
                
-            end
-            
-            for i = 1:sys.nNodes
-                sys.nodes{i}.yOld = sys.nodes{i}.yNew;
-                sys.nodes{i}.ydOld = sys.nodes{i}.ydNew;
-                sys.nodes{i}.yddOld = sys.nodes{i}.yddNew;
+               sys.nodes{i}.yOld = sys.nodes{i}.yNew;
+               sys.nodes{i}.ydOld = sys.nodes{i}.ydNew;
+               sys.nodes{i}.yddOld = sys.nodes{i}.yddNew;
             end
             
             sys.updateSystem()
@@ -250,6 +250,16 @@ classdef SystemEQ < handle
         
         end    
             
+        function [] = lump(sys)
+            
+            for i = 1:sys.nNodes
+                newVal = sum(sys.LHS(i,:))/length(sys.LHS(i,:));
+                sys.LHS(i,:) = zeros(1,length(sys.LHS(i,:)));
+                sys.LHS(i,i) = newVal;
+            end
+            
+        end
+        
             
     end
     
