@@ -14,9 +14,6 @@ classdef SystemEQ < handle
         ele = cell(2,1);
         bcArray = cell(1,1);
     end
-    properties (SetAccess = private)
-
-    end
     
     methods
         %Constructor
