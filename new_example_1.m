@@ -4,13 +4,13 @@ close all;
 clc;
 
 %% Physical and numerical constants
-numEle = 4;
+numEle = 3;
 numNodes = numEle+1;
 Kn = 0.1;
 rhoMax = 1;
-rhoMin = 1;
-rhoEss = 1;
-tEnd = 10;
+rhoMin = 0;
+rhoEss = 0;
+tEnd = 22;
 numSteps = 10;
 dt=tEnd/numSteps;
 
@@ -30,7 +30,8 @@ problemIC(1) = 1;
 % initialize and number nodes
 for i = 1:numNodes
     iv = problemIC(i);
-    nodes(i) = Node(i,nodeLocs(i),0,iv,0,0);
+    %nodes(i) = Node(i,nodeLocs(i),0,iv,0,0);
+    nodes(i) = Node(i,nodeLocs(i),0,0,iv,0);
 end
 
 % assign nodes to elements
@@ -55,20 +56,17 @@ sysEQ.addBC(BC1);
 BC2 = BoundaryCondition(2,1,numNodes,0,0,0);
 sysEQ.addBC(BC2);
 
-sysEQ.setBCs();
-
-sysEQ.LHS
 
 for n = 1:numSteps
     
-    sysEQ.solve(10E-8,10);
-    sysEQ.timeMarch();
+    gs4.time_march(sysEQ);
     
 end
 
 xPlot = linspace(0,1,numNodes);
 for j = 1:numNodes
-    sol(j) = nodes(j).yNew;
+    sol(j) = nodes(j).ydNew;
+    %sol(j) = nodes(j).yNew;
 end
 
 sysEQ.computeDirs()
@@ -77,10 +75,12 @@ for i = 1:numEle
     flux(i) = -Kn^2/3*sysEQ.ele(i).yp;
 end
 
-figure(2)
-plot(xFlux,flux)
-
 figure(3)
-plot(xPlot,sol)
+plot(xPlot,sol,'-rs')
+ylabel('u')
+
+figure(2)
+plot(xFlux,flux,'-ob')
+ylabel('flux')
 
 

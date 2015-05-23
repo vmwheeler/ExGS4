@@ -1,96 +1,82 @@
 classdef Element1DL < handle
-    %The 1D linear implicit GS4 element class for WOOFE
+    %Class describing a 1-D linear finite element
     
     properties
-        num = -29;
-        nodes = cell(2,1);
-        const = [-29,-29];
-        nnpe = 2;
-        dx = -29;
-        toLHS = cell(2,1);
-        toRHS = cell(2,1);
-        force = [-29,-29];
-        numDyn = 2;
-        yp = -29;
+        num %element number
+        nodes
+        const
+        nnpe
+        dx
+        toLHS
+        toRHS
+        force
+        numDyn
+        yp
+        eleC
+        eleK
     end
     
     methods
-        %
         % Constructor... send in nodes and material properties
-        function this = Element1DL(numIn, nodeInfo, constIn, fIn, gs4)
-            
-            this.num = numIn;
-            
-            this.nodes{1} = nodeInfo(1);
-            this.nodes{2} = nodeInfo(2);
-            
-            this.force(1) = fIn(1);
-            this.force(2) = fIn(2);
-            
-            this.const = constIn;
-            
-            this.dx = abs(this.nodes{1}.loc ...
-                - this.nodes{2}.loc );
-
-            this.updateAll(gs4)
-            
-        end
-        %
-        
-        function [] = updateAll(ele, gs4)
-            
-            ele.updateEleRHS(gs4)
-            ele.updateEleLHS(gs4)
-            
+        function obj = Element1DL(numIn, nodeInfo, constIn, fIn, gs4)
+            obj.num = numIn;
+            obj.nodes = nodeInfo;
+            obj.const = constIn;
+            obj.nnpe = 2;
+            obj.dx = abs(obj.nodes(1).loc - obj.nodes(2).loc );
+            obj.toLHS = cell(2,1);
+            obj.toRHS = cell(2,1);
+            obj.force = fIn;
+            obj.numDyn = 2;
+            obj.yp = 0;
+            obj.eleC = obj.const(1)*obj.dx/6 * [ 2 1 ; ...
+                                                 1 2 ];
+            obj.eleK = obj.const(2)*1/obj.dx * [ 1 -1 ; ...
+                                                -1  1 ]; 
+            obj.updateAll(gs4)
         end
         
-        function [] = updateEleRHS(ele, gs4)
+        function [] = updateAll(obj, gs4)
+            obj.updateEleRHS(gs4)
+            obj.updateEleLHS(gs4)
+        end
+        
+        function [] = updateEleRHS(obj, gs4)
             
-            yw1 = ele.nodes{1}.yOld ...
+            yw1 = obj.nodes(1).yOld ...
                 + gs4.lam5w2/gs4.lam5 ...
-                *(ele.nodes{1}.yNew - ele.nodes{1}.yOld);
-            yw2 = ele.nodes{2}.yOld ...
+                *(obj.nodes(1).yNew - obj.nodes(1).yOld);
+            yw2 = obj.nodes(2).yOld ...
                 + gs4.lam5w2/gs4.lam5 ...
-                *(ele.nodes{2}.yNew - ele.nodes{2}.yOld);
+                *(obj.nodes(2).yNew - obj.nodes(2).yOld);
             
             coeff1 = (1-gs4.lam6w1/gs4.lam5);
             coeff2 = gs4.lam6w1/gs4.lam5/gs4.dt;
             
-            ydw1 = coeff1*ele.nodes{1}.ydOld ...
-                + coeff2*(ele.nodes{1}.yNew - ele.nodes{1}.yOld);
-            ydw2 = coeff1*ele.nodes{2}.ydOld ...
-                + coeff2*(ele.nodes{2}.yNew - ele.nodes{2}.yOld);
-                        
-            eleK = ele.const(2)*1/ele.dx * [ 1 -1 ; ...
-                                           -1  1 ];  
-                                       
-            eleC = ele.const(1)*ele.dx/6 * [ 2 1 ; ...
-                                            1 2 ];
+            ydw1 = coeff1*obj.nodes(1).ydOld ...
+                + coeff2*(obj.nodes(1).yNew - obj.nodes(1).yOld);
+            ydw2 = coeff1*obj.nodes(2).ydOld ...
+                + coeff2*(obj.nodes(2).yNew - obj.nodes(2).yOld);
                                         
-            f1 = ele.dx/2*ele.force(1);
-            f2 = ele.dx/2*ele.force(2);
+            f1 = obj.dx/2*obj.force(1);
+            f2 = obj.dx/2*obj.force(2);
             
-            ele.toRHS{1} = eleC*[ydw1;ydw2];
-            ele.toRHS{2} = eleK*[yw1;yw2];
-            ele.toRHS{3} = [f1;f2];
+            obj.toRHS{1} = obj.eleC*[ydw1;ydw2];
+            obj.toRHS{2} = obj.eleK*[yw1;yw2];
+            obj.toRHS{3} = [f1;f2];
         end
         
-        function [] = updateEleLHS(ele,gs4)         
-            
-            eleK = ele.const(2)*1/ele.dx * [ 1 -1 ; ...
-                                           -1  1 ];  
-                                       
-            eleC = ele.const(1)*ele.dx/6 * [ 2 1 ; ...
-                                            1 2 ];
+        function [] = updateEleLHS(obj,gs4)         
                                         
-            ele.toLHS{1} = gs4.lam6w1/gs4.lam5/gs4.dt*eleC;                                     
-            ele.toLHS{2} = gs4.lam5w2/gs4.lam5*eleK;
+            obj.toLHS{1} = gs4.lam6w1/gs4.lam5/gs4.dt*obj.eleC;                                     
+            obj.toLHS{2} = gs4.lam5w2/gs4.lam5*obj.eleK;
             
         end
         
-        function [] = computeDir(ele)
+        function [] = computeDir(obj)
             % define spatial derivative within element
-            ele.yp = (ele.nodes{2}.yNew - ele.nodes{1}.yNew)/ele.dx;
+            obj.yp = (obj.nodes(2).yNew - obj.nodes(1).yNew)/obj.dx;
+            %obj.yp = (obj.nodes(2).ydNew - obj.nodes(1).ydNew)/obj.dx;
             
         end
         

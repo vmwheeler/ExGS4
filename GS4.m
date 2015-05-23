@@ -2,29 +2,23 @@ classdef GS4 < handle
     %Generalized Single Step Single Solve class definition
     
     properties
-        rhoMax = -29;
-        rhoMin = -29;
-        rhoSpu = -29;
-        shift = -29;
-        order = -29;
-    end
-    
-    properties (SetAccess = private)
-        % algorithm parameters
-        lam1w1 = -29;
-        lam2w2 = -29;
-        lam3w3 = -29;
-        lam4w1 = -29;
-        lam5w2 = -29;
-        lam6w1 = -29;
-        w1 = -29;
-        lam1 = -29;
-        lam2 = -29;
-        lam3 = -29;
-        lam4 = -29;
-        lam5 = -29;
+
+        lam1w1
+        lam2w2
+        lam3w3
+        lam4w1
+        lam5w2
+        lam6w1
+        w1
+        lam1
+        lam2
+        lam3
+        lam4
+        lam5
+        dt
+        order
+        shift
         
-        dt = -29;
     end
     
     methods
@@ -38,9 +32,6 @@ classdef GS4 < handle
             if sysOrder == 1
                 rmx = 1;
             end
-            this.rhoMax = rmx;
-            this.rhoMin = rmn;
-            this.rhoSpu = rsp;
             
             this.shift =...
                 (2+rmn+rmx+rsp-rmn*rmx*rsp)/...
@@ -61,30 +52,76 @@ classdef GS4 < handle
             this.lam5 = 1/(1+rsp);
             
         end
+
         
-        function [newDD, newD] = march(gs4,nodeIn)
+        function [] = time_march(gs4, sys)
+          
+            delt = gs4.dt;
             
-            if gs4.order == 1
-                newDD = 0;
-                newD = (1-1/gs4.lam5)*nodeIn.ydOld ...
-                    + 1/gs4.lam5/gs4.dt*(nodeIn.yNew-nodeIn.yOld);
-                
-            elseif gs4.order == 2
-                
-                newDD = (1-gs4.lam2/gs4.lam3)*nodeIn.yddOld ...
-                    - 1/gs4.lam3/gs4.dt*nodeIn.ydOld ...
-                    + 1/gs4.lam3/gs4.dt/gs4.dt*(nodeIn.yNew-nodeIn.yOld);
-                
-                newD = (1-gs4.lam5/gs4.lam3)*nodeIn.ydOld ...
-                    + (1-gs4.lam2*gs4.lam5/gs4.lam3)*gs4.dt*nodeIn.yddOld...
-                    + gs4.lam5/gs4.lam3/gs4.dt*(nodeIn.yNew-nodeIn.yOld);
-                
+            
+
+            
+            %perform shift
+            Emm = sys.bigC;
+            Cee = sys.bigK;
+            Kay = zeros(sys.nNodes,sys.nNodes);
+            
+            yddn = zeros(sys.nNodes,1);
+            ydn = zeros(sys.nNodes,1);
+            yn = zeros(sys.nNodes,1);
+            for i = 1:sys.nNodes
+                yddn(i) = sys.nodes(i).yddOld;
+                ydn(i) = sys.nodes(i).ydOld;
+                yn(i) = sys.nodes(i).yOld;
+            end
+            
+
+            LHS = gs4.lam6w1*Emm ...
+                + gs4.lam5w2*gs4.dt*Cee + gs4.lam3w3*gs4.dt^2*Kay;
+            
+            %TODO include force terms!
+            
+            RHS = - Emm*yddn ...
+                  - Cee*(ydn + gs4.lam4w1*delt*yddn) ...
+                  - Kay*(yn + gs4.lam1w1*delt*ydn ...
+                                + gs4.lam2w2*delt^2*yddn); %...
+                  %+ (1-gs4.w1)*sys.fOld + gs4.w1*sys.fNew;
+            
+
+            %TODO need to write some code here to enforce BCs
+            %should be "straight forward" since sysEQ was passed in
+            
+            %TODO first set neumann and robin conditions
+            
+            % then set the dirichlet conditions
+            for i = 1:sys.nbc
+                bc = sys.bcs(i);
+                if bc.type == 1
+                    no = bc.where;
+                    LHS(no,:) = zeros(1,length(LHS(no,:)));
+                    LHS(:,no) = zeros(length(LHS(no,:)),1);
+                    LHS(no,no) = 1;                   
+                    RHS(no) = (bc.changeRHS - ydn(no) - delt*yddn(no))/gs4.lam5/delt;
+                end
+            end
+
+            
+            delydd = LHS \ RHS;
+            
+            for i = 1:sys.nNodes
+                sys.nodes(i).yddNew = yddn(i) + delydd(i);
+                sys.nodes(i).ydNew = ydn(i) + gs4.lam4*delt*yddn(i) ...
+                        + gs4.lam5*delt*delydd(i);
+                sys.nodes(i).yNew = yn(i) + gs4.lam1*delt*ydn(i) ...
+                        + gs4.lam2*delt^2*yddn(i) ...
+                        + gs4.lam3*delt^2*delydd(i);
+                sys.nodes(i).yddOld = sys.nodes(i).yddNew;
+                sys.nodes(i).ydOld = sys.nodes(i).ydNew;
+                sys.nodes(i).yOld = sys.nodes(i).yNew;
             end
             
             
         end
-            
-        
         
     end
     
