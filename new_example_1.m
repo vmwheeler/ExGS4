@@ -1,44 +1,47 @@
 %A simple example of using ExGS4 to solve a 1D heat conduction problem
 clear all;
 close all;
-clc;
+%clc;
 
 %% Physical and numerical constants
-numEle = 3;
+numEle = 10;
 numNodes = numEle+1;
 Kn = 0.1;
 rhoMax = 1;
 rhoMin = 0;
 rhoEss = 0;
 tEnd = 22;
-numSteps = 10;
+numSteps = 2;
 dt=tEnd/numSteps;
 
 gs4 = GS4(rhoMax,rhoMin,rhoEss,dt,1);
+
+%% Initialize vectors
+problemIC = zeros(numNodes,1);
+%ele(numEle) = Element1DL();
+sol = zeros(numNodes,1);
+flux = zeros(numNodes-1,1);
 
 %% Import (or create) mesh data
 
 % generate nodal locations
 nodeLocs = linspace(0,1,numNodes);
 
-% create initial values (might be inconvenient when reading in mesh but 
-% we shall see...)
-problemIC = zeros(numNodes,1);
 problemIC(1) = 1;
-% note the yd initial value is set to zero below
-
 % initialize and number nodes
 for i = 1:numNodes
     iv = problemIC(i);
-    %nodes(i) = Node(i,nodeLocs(i),0,iv,0,0);
-    nodes(i) = Node(i,nodeLocs(i),0,0,iv,0);
+    nodes(i) = Node(i,nodeLocs(i),0,iv,0,0);
+    %nodes(i) = Node(i,nodeLocs(i),0,0,iv,0);
 end
 
+%grab the handle to the forcing function
+fhandle = @force_term_0;
+
 % assign nodes to elements
-%ele(numEle) = Element1DL();
 for i = 1:numEle
     eleNodes = [nodes(i);nodes(i+1)];
-    ele(i) = Element1DL(i,eleNodes, [1,Kn^2/3],[0,0,0],gs4);
+    ele(i) = Element1DL(i,eleNodes, [1,Kn^2/3], fhandle);
 end
 
 
@@ -58,15 +61,12 @@ sysEQ.addBC(BC2);
 
 
 for n = 1:numSteps
-    
     gs4.time_march(sysEQ);
-    
 end
 
 xPlot = linspace(0,1,numNodes);
 for j = 1:numNodes
-    sol(j) = nodes(j).ydNew;
-    %sol(j) = nodes(j).yNew;
+    sol(j) = nodes(j).yNew;
 end
 
 sysEQ.computeDirs()

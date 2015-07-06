@@ -13,6 +13,7 @@ classdef SystemEQ < handle
         bigC
         bigK
         bigM
+        RHS
     end
     
     methods
@@ -31,9 +32,10 @@ classdef SystemEQ < handle
             obj.bigM = zeros(obj.nNodes,obj.nNodes);
             obj.bigC = zeros(obj.nNodes,obj.nNodes);
             obj.bigK = zeros(obj.nNodes,obj.nNodes);
+            obj.RHS = zeros(obj.nNodes,1);
         end
         
-        %Add local stiffness matrices to global objtem
+        %Add local stiffness matrices to global system
         function [] = addElement(obj,eleToAdd)
             obj.ele(eleToAdd.num) = eleToAdd;
             
@@ -56,11 +58,11 @@ classdef SystemEQ < handle
                 end
             end
             
-            %TODO assemble force
             %external force assembly
-            %for m = 1:looplim
-            %    obj.RHS(nn(m)) = obj.RHS(nn(m)) - upF(m);
-            %end
+            %TODO also make sure this works for non-trivial force terms
+            for m = 1:looplim
+                obj.RHS(nn(m)) = obj.RHS(nn(m)) - eleToAdd.force(m);
+            end
             
         end
         

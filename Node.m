@@ -1,5 +1,5 @@
 classdef Node < handle
-    %The general node class for WOOFE
+    %The general node class
     
     properties
         loc
@@ -14,8 +14,7 @@ classdef Node < handle
     end
     
     methods
-        function this = Node(numIn, locIn, boundaryIn, ...
-                ic, icD, icDD)
+        function this = Node(numIn, locIn, boundaryIn, ic, icD, icDD)
             this.num = numIn;
             this.loc = locIn;
             this.onBoundary = boundaryIn;

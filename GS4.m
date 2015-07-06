@@ -58,21 +58,25 @@ classdef GS4 < handle
           
             delt = gs4.dt;
             
-            
-
-            
-            %perform shift
-            Emm = sys.bigC;
-            Cee = sys.bigK;
-            Kay = zeros(sys.nNodes,sys.nNodes);
-            
             yddn = zeros(sys.nNodes,1);
             ydn = zeros(sys.nNodes,1);
             yn = zeros(sys.nNodes,1);
+            yddnp1 = zeros(sys.nNodes,1);
+            ydnp1 = zeros(sys.nNodes,1);
+            ynp1 = zeros(sys.nNodes,1);
             for i = 1:sys.nNodes
                 yddn(i) = sys.nodes(i).yddOld;
                 ydn(i) = sys.nodes(i).ydOld;
                 yn(i) = sys.nodes(i).yOld;
+            end
+            
+            %perform shift
+            if gs4.order == 1
+                Emm = sys.bigC;
+                Cee = sys.bigK;
+                Kay = zeros(sys.nNodes,sys.nNodes);
+                yddn = ydn;
+                ydn = yn;
             end
             
 
@@ -92,6 +96,18 @@ classdef GS4 < handle
             %should be "straight forward" since sysEQ was passed in
             
             %TODO first set neumann and robin conditions
+            % the beginnings are here but I need to get the forcing
+            % function business working
+            %ALSO, there should be a property of the element that
+            % weights the boundary conditions properly (easy here dx/2) me
+            % thinks... but it should be independent of GS4
+            for i = 1:sys.nbc
+                bc = sys.bcs(i);
+                if bc.type == 2
+                    no = bc.where;
+                    RHS(no) = RHS(no) + bc.changeRHS;
+                end
+            end
             
             % then set the dirichlet conditions
             for i = 1:sys.nbc
@@ -104,17 +120,30 @@ classdef GS4 < handle
                     RHS(no) = (bc.changeRHS - ydn(no) - delt*yddn(no))/gs4.lam5/delt;
                 end
             end
-
             
+            %solve!
             delydd = LHS \ RHS;
             
+            %compute updates
             for i = 1:sys.nNodes
-                sys.nodes(i).yddNew = yddn(i) + delydd(i);
-                sys.nodes(i).ydNew = ydn(i) + gs4.lam4*delt*yddn(i) ...
+                yddnp1(i) = yddn(i) + delydd(i);
+                ydnp1(i) = ydn(i) + gs4.lam4*delt*yddn(i) ...
                         + gs4.lam5*delt*delydd(i);
-                sys.nodes(i).yNew = yn(i) + gs4.lam1*delt*ydn(i) ...
+                ynp1(i) = yn(i) + gs4.lam1*delt*ydn(i) ...
                         + gs4.lam2*delt^2*yddn(i) ...
                         + gs4.lam3*delt^2*delydd(i);
+            end
+
+            %shift back before updating global system
+            if gs4.order == 1
+                ynp1 = ydnp1;
+                ydnp1 = yddnp1;
+            end
+
+            for i = 1:sys.nNodes
+                sys.nodes(i).yddNew = yddnp1(i);
+                sys.nodes(i).ydNew = ydnp1(i);
+                sys.nodes(i).yNew = ynp1(i);
                 sys.nodes(i).yddOld = sys.nodes(i).yddNew;
                 sys.nodes(i).ydOld = sys.nodes(i).ydNew;
                 sys.nodes(i).yOld = sys.nodes(i).yNew;
