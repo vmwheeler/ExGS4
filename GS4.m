@@ -70,16 +70,31 @@ classdef GS4 < handle
                 yn(i) = sys.nodes(i).yOld;
             end
             
-            %perform shift
+            %make some space for temporary stiffness matrices
+            Emm = sys.bigM;
+            Cee = sys.bigC;
+            Kay = sys.bigK;
+            
+            % grab BC values before shifting
+            LHSadd = zeros(sys.nbc);
+            for i = 1:sys.nbc
+                bc = sys.bcs(i);
+                no = bc.where;
+                kVal = bc.addK;
+                cVal = bc.addC;
+                Kay(no,no) = Kay(no,no) + kVal;
+            end
+            
+            
+            %perform shift if first order
             if gs4.order == 1
-                Emm = sys.bigC;
-                Cee = sys.bigK;
+                Emm = Cee;
+                Cee = Kay;
                 Kay = zeros(sys.nNodes,sys.nNodes);
                 yddn = ydn;
                 ydn = yn;
             end
             
-
             LHS = gs4.lam6w1*Emm ...
                 + gs4.lam5w2*gs4.dt*Cee + gs4.lam3w3*gs4.dt^2*Kay;
             
@@ -90,10 +105,7 @@ classdef GS4 < handle
                   - Kay*(yn + gs4.lam1w1*delt*ydn ...
                                 + gs4.lam2w2*delt^2*yddn); %...
                   %+ (1-gs4.w1)*sys.fOld + gs4.w1*sys.fNew;
-            
-
-            %TODO need to write some code here to enforce BCs
-            %should be "straight forward" since sysEQ was passed in
+                  
             
             %TODO first set neumann and robin conditions
             % the beginnings are here but I need to get the forcing
@@ -101,13 +113,32 @@ classdef GS4 < handle
             %ALSO, there should be a property of the element that
             % weights the boundary conditions properly (easy here dx/2) me
             % thinks... but it should be independent of GS4
+            
+            %LEFT OFF AT bc.type==3, apply to Kay before forming LHS
+            
             for i = 1:sys.nbc
                 bc = sys.bcs(i);
+                no = bc.where;
+                rhsVal = bc.changeRHS;
+                cVal = bc.addC;
                 if bc.type == 2
-                    no = bc.where;
-                    RHS(no) = RHS(no) + bc.changeRHS;
+                    RHS(no) = RHS(no) + rhsVal;
+                elseif bc.type == 3
+                    %doesnt work!
+                    LHS(no,no) = LHS(no,no) + LHSadd(i);
+                    %RHS(no) = RHS(no) + kVal*obj.nodes(no).yNew;
+                    RHS(no) = RHS(no) + rhsVal;
                 end
             end
+
+            
+            
+            
+
+            %TODO need to write some code here to enforce BCs
+            %should be "straight forward" since sysEQ was passed in
+            
+
             
             % then set the dirichlet conditions
             for i = 1:sys.nbc

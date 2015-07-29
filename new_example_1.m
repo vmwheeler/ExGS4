@@ -4,14 +4,14 @@ close all;
 %clc;
 
 %% Physical and numerical constants
-numEle = 10;
+numEle = 20;
 numNodes = numEle+1;
-Kn = 0.1;
+Kn = 1.;
 rhoMax = 1;
 rhoMin = 0;
 rhoEss = 0;
-tEnd = 22;
-numSteps = 2;
+tEnd = 100;
+numSteps = 10;
 dt=tEnd/numSteps;
 
 gs4 = GS4(rhoMax,rhoMin,rhoEss,dt,1);
@@ -54,7 +54,7 @@ for q = 1:numEle
 end
 
 % set BCs
-BC1 = BoundaryCondition(1,1,1,0,0,1);
+BC1 = BoundaryCondition(1,3,1,0,0.5*Kn,0.5*Kn);
 sysEQ.addBC(BC1);
 BC2 = BoundaryCondition(2,1,numNodes,0,0,0);
 sysEQ.addBC(BC2);
