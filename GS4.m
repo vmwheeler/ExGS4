@@ -75,14 +75,16 @@ classdef GS4 < handle
             Cee = sys.bigC;
             Kay = sys.bigK;
             
-            % grab BC values before shifting
-            LHSadd = zeros(sys.nbc);
+            % set type 3 BC values before shifting
             for i = 1:sys.nbc
                 bc = sys.bcs(i);
                 no = bc.where;
                 kVal = bc.addK;
                 cVal = bc.addC;
-                Kay(no,no) = Kay(no,no) + kVal;
+                if bc.type == 3
+                    Kay(no,no) = Kay(no,no) + kVal;
+                    Cee(no,no) = Cee(no,no) + cVal;
+                end
             end
             
             
@@ -99,55 +101,29 @@ classdef GS4 < handle
                 + gs4.lam5w2*gs4.dt*Cee + gs4.lam3w3*gs4.dt^2*Kay;
             
             %TODO include force terms!
+            %check if force term is time-depenedent then update as
+            %necessary
+            
+            sys.updateForce();
+            sys.force
             
             RHS = - Emm*yddn ...
                   - Cee*(ydn + gs4.lam4w1*delt*yddn) ...
                   - Kay*(yn + gs4.lam1w1*delt*ydn ...
-                                + gs4.lam2w2*delt^2*yddn); %...
+                                + gs4.lam2w2*delt^2*yddn) ...
+                                - sys.force;
                   %+ (1-gs4.w1)*sys.fOld + gs4.w1*sys.fNew;
-                  
-            
-            %TODO first set neumann and robin conditions
-            % the beginnings are here but I need to get the forcing
-            % function business working
-            %ALSO, there should be a property of the element that
-            % weights the boundary conditions properly (easy here dx/2) me
-            % thinks... but it should be independent of GS4
-            
-            %LEFT OFF AT bc.type==3, apply to Kay before forming LHS
-            
-            for i = 1:sys.nbc
-                bc = sys.bcs(i);
-                no = bc.where;
-                rhsVal = bc.changeRHS;
-                cVal = bc.addC;
-                if bc.type == 2
-                    RHS(no) = RHS(no) + rhsVal;
-                elseif bc.type == 3
-                    %doesnt work!
-                    LHS(no,no) = LHS(no,no) + LHSadd(i);
-                    %RHS(no) = RHS(no) + kVal*obj.nodes(no).yNew;
-                    RHS(no) = RHS(no) + rhsVal;
-                end
-            end
-
-            
-            
-            
-
-            %TODO need to write some code here to enforce BCs
-            %should be "straight forward" since sysEQ was passed in
-            
-
             
             % then set the dirichlet conditions
             for i = 1:sys.nbc
                 bc = sys.bcs(i);
+                no = bc.where;
+                rhsVal = bc.changeRHS;
+                RHS(no) = RHS(no) + rhsVal;
                 if bc.type == 1
-                    no = bc.where;
                     LHS(no,:) = zeros(1,length(LHS(no,:)));
                     LHS(:,no) = zeros(length(LHS(no,:)),1);
-                    LHS(no,no) = 1;                   
+                    LHS(no,no) = 1;      
                     RHS(no) = (bc.changeRHS - ydn(no) - delt*yddn(no))/gs4.lam5/delt;
                 end
             end

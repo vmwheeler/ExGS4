@@ -8,6 +8,7 @@ classdef Element1DL < handle
         nnpe
         dx
         force
+        fhandle
         yp
         eleC
         eleK
@@ -15,7 +16,7 @@ classdef Element1DL < handle
     
     methods
         % Constructor... send in nodes and material properties
-        function obj = Element1DL(numIn, nodeInfo, constIn, extF)
+        function obj = Element1DL(numIn, nodeInfo, constIn, fhandle)
             obj.num = numIn;
             obj.nodes = nodeInfo;
             obj.const = constIn;
@@ -26,15 +27,25 @@ classdef Element1DL < handle
                                                  1 2 ];
             obj.eleK = obj.const(2)*1/obj.dx * [ 1 -1 ; ...
                                                 -1  1 ];
+            obj.fhandle = fhandle;
+            obj.force = [0;0];
+ 
+        end
+        
+        function [] = computeForce(obj)
+            
             % evaluate integrals to get forcing function contributions to
             % each node
             %TODO check if this works for real interesting forcing
             %fucntions... this uses local coordinates so i think it will
             %break down for non-constant forces
-            ff1 = @(x) (1-x./obj.dx).*extF(x);
-            ff2 = @(x) (x./obj.dx).*extF(x);
-            obj.force = [ integral(ff1,0,obj.dx);
-                          integral(ff2,0,obj.dx) ];
+            x1 = obj.nodes(1).loc;
+            x2 = obj.nodes(2).loc;
+            ff1 = @(x) (1-(x2-x)./obj.dx).*obj.fhandle(x);
+            ff2 = @(x) ((x2-x)./obj.dx).*obj.fhandle(x);
+            obj.force = [ integral(ff1,x1,x2);
+                          integral(ff2,x1,x2) ];
+            
         end
         
         function [] = computeDir(obj)

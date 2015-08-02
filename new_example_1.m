@@ -1,16 +1,16 @@
 %A simple example of using ExGS4 to solve a 1D heat conduction problem
 clear all;
 close all;
-%clc;
+clc;
 
 %% Physical and numerical constants
-numEle = 20;
+numEle = 40;
 numNodes = numEle+1;
-Kn = 1.;
+Kn = 0.1;
 rhoMax = 1;
-rhoMin = 0;
-rhoEss = 0;
-tEnd = 100;
+rhoMin = 0.;
+rhoEss = 0.;
+tEnd = 10000;
 numSteps = 10;
 dt=tEnd/numSteps;
 
@@ -35,8 +35,10 @@ for i = 1:numNodes
     %nodes(i) = Node(i,nodeLocs(i),0,0,iv,0);
 end
 
+%TODO: make the force term work!
 %grab the handle to the forcing function
-fhandle = @force_term_0;
+%fhandle = @force_term_0;
+fhandle = @force_term_gaussian;
 
 % assign nodes to elements
 for i = 1:numEle
@@ -54,13 +56,18 @@ for q = 1:numEle
 end
 
 % set BCs
+%BC1 = BoundaryCondition(1,1,1,0,0,0.0);
 BC1 = BoundaryCondition(1,3,1,0,0.5*Kn,0.5*Kn);
+%BC1 = BoundaryCondition(1,2,1,0,0,0.001);
 sysEQ.addBC(BC1);
-BC2 = BoundaryCondition(2,1,numNodes,0,0,0);
+BC2 = BoundaryCondition(2,1,numNodes,0,0,0.0);
+%BC2 = BoundaryCondition(2,3,numNodes,0,0.5*Kn,0);
+%BC2 = BoundaryCondition(2,2,numNodes,0,0,0.1);
 sysEQ.addBC(BC2);
 
 
 for n = 1:numSteps
+    fprintf('Timestep #%i \n',n)
     gs4.time_march(sysEQ);
 end
 
@@ -76,8 +83,10 @@ for i = 1:numEle
 end
 
 figure(3)
-plot(xPlot,sol,'-rs')
+plot(xPlot,sol,'-rs',xPlot,-sysEQ.force,'--b')
 ylabel('u')
+%ylim([0,1])
+%xlim([0,1])
 
 figure(2)
 plot(xFlux,flux,'-ob')

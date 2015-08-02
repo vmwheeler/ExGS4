@@ -13,7 +13,7 @@ classdef SystemEQ < handle
         bigC
         bigK
         bigM
-        RHS
+        force
     end
     
     methods
@@ -32,7 +32,7 @@ classdef SystemEQ < handle
             obj.bigM = zeros(obj.nNodes,obj.nNodes);
             obj.bigC = zeros(obj.nNodes,obj.nNodes);
             obj.bigK = zeros(obj.nNodes,obj.nNodes);
-            obj.RHS = zeros(obj.nNodes,1);
+            obj.force = zeros(obj.nNodes,1);
         end
         
         %Add local stiffness matrices to global system
@@ -58,10 +58,30 @@ classdef SystemEQ < handle
                 end
             end
             
-            %external force assembly
-            %TODO also make sure this works for non-trivial force terms
-            for m = 1:looplim
-                obj.RHS(nn(m)) = obj.RHS(nn(m)) - eleToAdd.force(m);
+            
+            
+        end
+        
+        function [] = updateForce(obj)
+
+            obj.force = zeros(length(obj.force),1);
+            
+            for i = 1:obj.nEle
+                
+                obj.ele(i).computeForce()
+                
+                %get node numbers for element to be assembled
+                nn = zeros(obj.ele(i).nnpe,1);
+                for j = 1:length(nn)
+                    nn(j) = obj.ele(i).nodes(j).num;
+                end
+                
+                %external force assembly
+                %TODO also make sure this works for non-trivial force terms
+                for m = 1:length(nn)
+                    obj.force(nn(m)) = obj.force(nn(m)) - obj.ele(i).force(m);
+                end
+                
             end
             
         end
@@ -79,46 +99,6 @@ classdef SystemEQ < handle
             obj.bcArray{BC.num} = BC;
             obj.setBCs();
             
-        end
-        
-        
-        function [] = setBCs(obj)
-            
-            for i = 1:obj.nbc
-                
-                bcToSet = obj.bcArray{i};
-                nNo = bcToSet.where;
-                rhsVal = bcToSet.changeRHS;
-                kVal = bcToSet.addK;
-                cVal = bcToSet.addC;
-                
-                if bcToSet.type == 1
-                    
-                    obj.LHS(nNo,:) = zeros(1,length(obj.LHS(nNo,:)));
-                    obj.LHS(:,nNo) = zeros(length(obj.LHS(nNo,:)),1);
-                    obj.LHS(nNo,nNo) = 1;    
-                    
-                    obj.RHS(nNo) = obj.nodes(nNo).yNew - rhsVal;
-                    
-                elseif bcToSet.type == 2
-                    
-                    obj.RHS(nNo) = obj.RHS(nNo) - rhsVal;
-                    
-                elseif bcToSet.type == 3
-                    
-                    obj.LHS(nNo,nNo) = obj.LHS(nNo,nNo) + kVal;
-                    obj.RHS(nNo) = obj.RHS(nNo) + kVal*obj.nodes(nNo).yNew;
-                    obj.RHS(nNo) = obj.RHS(nNo) - rhsVal;
-                    
-                elseif bcToSet.type == 4 
-                    
-                    obj.LHS(nNo,nNo) = obj.LHS(nNo,nNo) + kVal;
-                    obj.RHS(nNo) = obj.RHS(nNo) + kVal*obj.nodes(nNo).yNew;
-                    obj.RHS(nNo) = obj.RHS(nNo) + cVal*obj.nodes(nNo).ydNew;
-                    obj.RHS(nNo) = obj.RHS(nNo) - rhsVal;
-                    
-                end
-            end
         end
             
         function [] = computeDirs(obj)
