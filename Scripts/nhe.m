@@ -5,20 +5,21 @@ clc;
 addpath('../Base','../Elements','../ForceTerms/');
 
 %% Physical and numerical constants
-numEle = 40;
+numEle = 10;
 numNodes = numEle+1;
 Kn = 1.0;
 rhoMax = 1; rhoMin = 0.0; rhoEss = 0.0;
-tEnd = 0.5;
+tEnd = 1.0;
 numSteps = 10;
 dt=tEnd/numSteps;
 
-gs4 = GS4(rhoMax,rhoMin,rhoEss,dt,2);
+gs4 = GS4(rhoMax,rhoMin,rhoEss,dt,1);
 
 %% Initialize vectors
 problemIC = zeros(numNodes,1);
 sol = zeros(numNodes,1);
 flux = zeros(numNodes-1,1);
+xPlot = linspace(0,1,numNodes);
 
 %% Import (or create) mesh data
 
@@ -51,22 +52,25 @@ for q = 1:numEle
 end
 
 % set BCs
-BC1 = BoundaryCondition(1,1,1,0,0,1.0);
+BC1 = BoundaryCondition(1,3,1,0,Kn*0.5,Kn*0.5);
 sysEQ.addBC(BC1);
-BC2 = BoundaryCondition(2,1,numNodes,0,0,0.0);
+BC2 = BoundaryCondition(2,3,numNodes,0,Kn*0.5,0.0);
 sysEQ.addBC(BC2);
+
+bigK0 = sysEQ.bigK;
+gs4.tnpw1 = gs4.w1*dt;
 
 fprintf('dt = %f\n', gs4.dt)
 for n = 1:numSteps
     fprintf('Timestep #%i \n',n)
-    gs4.time_march(sysEQ);
     fprintf('gs4.n = %i\n', gs4.n)
     fprintf('gs4.tn = %f\n', gs4.tn)
     fprintf('gs4.tnp1 = %f\n', gs4.tnp1)
-    fprintf('gs4.tnpw1 = %f\n\n', gs4.tnpw1);
+    fprintf('gs4.tnpw1 = %f\n', gs4.tnpw1);
+    sysEQ.bigK = (1-exp(-gs4.tnpw1))*bigK0;
+    gs4.time_march(sysEQ);
 end
 
-xPlot = linspace(0,1,numNodes);
 for j = 1:numNodes
     sol(j) = nodes(j).yNew;
 end
@@ -74,7 +78,7 @@ end
 sysEQ.computeDirs()
 for i = 1:numEle
     xFlux(i) = sysEQ.ele(i).nodes(2).loc;
-    flux(i) = -Kn^2/3*sysEQ.ele(i).yp;
+    flux(i) = -(1-exp(-gs4.tnpw1))*Kn^2/3*sysEQ.ele(i).yp;
 end
 
 figure(3)

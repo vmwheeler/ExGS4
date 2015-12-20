@@ -62,11 +62,20 @@ classdef GS4 < handle
         
         function [] = time_march(gs4, sys)
           
+            %some matlab-fu to make sure we are integrating a system
+            %of the expected order
+            if any(any(sys.bigM))
+                gs4.order = 2;
+            else
+                gs4.order = 1;
+            end
+            
             delt = gs4.dt;
             
             gs4.tn = delt*gs4.n;
             gs4.n = gs4.n + 1;
             gs4.tnp1 = delt*(gs4.n);
+            gs4.tnpw1 = gs4.tn + gs4.w1*(gs4.tnp1-gs4.tn);
             
             yddn = zeros(sys.nNodes,1);
             ydn = zeros(sys.nNodes,1);
@@ -96,7 +105,6 @@ classdef GS4 < handle
                     Cee(no,no) = Cee(no,no) + cVal;
                 end
             end
-            
             
             %perform shift if first order
             if gs4.order == 1

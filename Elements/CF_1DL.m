@@ -1,4 +1,4 @@
-classdef Element1DL < handle
+classdef CF_1DL < handle
     %Class describing a 1-D linear finite element
     
     properties
@@ -17,19 +17,33 @@ classdef Element1DL < handle
     
     methods
         % Constructor... send in nodes and material properties
-        function obj = Element1DL(numIn, nodeInfo, constIn, fhandle)
+        function obj = CF_1DL(numIn, nodeInfo, constIn, fhandle)
             obj.num = numIn;
             obj.nodes = nodeInfo;
             obj.const = constIn;
             obj.nnpe = 2;
             obj.dx = abs(obj.nodes(1).loc - obj.nodes(2).loc );
             obj.yp = 0;
-            obj.eleM = [ 0 0 ; ...
-                         0 0 ];
-            obj.eleC = obj.const(1)*obj.dx/6 * [ 2 1 ; ...
-                                                 1 2 ];
-            obj.eleK = obj.const(2)*1/obj.dx * [ 1 -1 ; ...
+            if obj.const(4) < 1
+                obj.eleM = obj.const(1)*obj.dx/6 * [ 2 1 ; ...
+                                                    1 2 ];
+                eleC2 = obj.const(4)*1/obj.dx * [ 1 -1 ; ...
+                                             -1  1 ];
+            else
+                obj.eleM = [ 0 0 ; ...
+                             0 0 ];
+                eleC2 = [ 0 0 ; ...
+                          0 0 ];
+            end
+                
+            eleC1 = obj.const(2)*obj.dx/6 * [ 2 1 ; ...
+                                              1 2 ];
+            
+            obj.eleC = eleC1 + eleC2;
+            obj.eleK = obj.const(3)*1/obj.dx * [ 1 -1 ; ...
                                                 -1  1 ];
+            
+                                            
             obj.fhandle = fhandle;
             obj.force = [0;0];
  
@@ -42,6 +56,8 @@ classdef Element1DL < handle
             fprintf('--------------------------------------------------------\n')
             fprintf('Element #: %i\n', obj.num)
             fprintf('Nodes: %i, %i\n', obj.nodes(1).num, obj.nodes(2).num)
+            fprintf('M^(e): [ %f, %f ]\n', obj.eleK(1,1), obj.eleK(1,2) )
+            fprintf('       [ %f, %f ]\n', obj.eleK(2,1), obj.eleK(2,2) )
             fprintf('K^(e): [ %f, %f ]\n', obj.eleK(1,1), obj.eleK(1,2) )
             fprintf('       [ %f, %f ]\n', obj.eleK(2,1), obj.eleK(2,2) )
             fprintf('C^(e): [ %f, %f ]\n', obj.eleC(1,1), obj.eleC(1,2) )

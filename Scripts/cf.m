@@ -7,8 +7,9 @@ addpath('../Base','../Elements','../ForceTerms/');
 %% Physical and numerical constants
 numEle = 40;
 numNodes = numEle+1;
-Kn = 1.0;
-rhoMax = 1; rhoMin = 0.0; rhoEss = 0.0;
+Kn = 1.;
+FT = 1.;
+rhoMax = 1.; rhoMin = 0.; rhoEss = 0.;
 tEnd = 0.5;
 numSteps = 10;
 dt=tEnd/numSteps;
@@ -39,7 +40,7 @@ fhandle = @force_term_0;
 % assign nodes to elements
 for i = 1:numEle
     eleNodes = [nodes(i);nodes(i+1)];
-    ele(i) = Element1DL(i,eleNodes, [1,Kn^2/3], fhandle);
+    ele(i) = CF_1DL(i,eleNodes, [1,1,Kn^2/3,FT], fhandle);
 end
 
 % initiallize
@@ -62,8 +63,7 @@ for n = 1:numSteps
     gs4.time_march(sysEQ);
     fprintf('gs4.n = %i\n', gs4.n)
     fprintf('gs4.tn = %f\n', gs4.tn)
-    fprintf('gs4.tnp1 = %f\n', gs4.tnp1)
-    fprintf('gs4.tnpw1 = %f\n\n', gs4.tnpw1);
+    fprintf('gs4.tnp1 = %f\n\n', gs4.tnp1)
 end
 
 xPlot = linspace(0,1,numNodes);
